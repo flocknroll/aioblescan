@@ -30,6 +30,7 @@ from aioblescan.plugins import EddyStone
 from aioblescan.plugins import RuuviWeather
 from aioblescan.plugins import BlueMaestro
 from aioblescan.plugins import ATCMiThermometer
+from aioblescan.plugins import Tilt
 
 # global
 opts = None
@@ -77,6 +78,10 @@ def my_process(data):
         xx = ATCMiThermometer().decode(ev)
         if xx:
             print("Temperature info {}".format(xx))
+    elif opts.tilt:
+        xx = Tilt().decode(ev)
+        if xx:
+            print("{}".format(xx))        
     else:
         ev.show(0)
 
@@ -155,6 +160,12 @@ def main(args=None):
         default=0,
         help="Select the hciX device to use (default 0, i.e. hci0).",
     )
+    parser.add_argument(
+        "-T","--tilt",
+        action = 'store_true',
+        default = False,
+        help = "Look only for Tilt."
+    ) 
     try:
         opts = parser.parse_args()
     except Exception as e:
