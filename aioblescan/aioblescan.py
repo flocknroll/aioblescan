@@ -764,7 +764,9 @@ class Packet:
         return None
 
     def retrieve(self, aclass):
-        """Look for a specifc class/name in the packet"""
+        """
+        Look for a specific class/name in the packet
+        """
         resu = []
         for x in self.payload:
             try:
@@ -778,14 +780,32 @@ class Packet:
                 resu += x.retrieve(aclass)
             except:
                 pass
+            
         return resu
+
+    
+    def retrieve_first(self, aclass):
+        """
+        Look for a specific class/name in the packet
+        Get the first isntance or None if no match
+        """
+        res = self.retrieve(aclass)
+
+        return res[0] if len(res) > 0 else None
+
+    def retrieve_last(self, aclass):
+        """
+        Look for a specific class/name in the packet
+        Get the last instance or None if no match
+        """
+        res = self.retrieve(aclass)
+
+        return res[-1] if len(res) > 0 else None
 
 
 #
 # Commands
 #
-
-
 class HCI_Command(Packet):
     """Class representing a command HCI packet.
 

@@ -1,34 +1,36 @@
 #!/usr/bin/python3
-
 # This file deals with the Tilt formatted message
-from struct import unpack
+
 import json
-import aioblescan as aios
+from struct import unpack
 
 # Tilt format based on iBeacon format and filter includes Apple iBeacon
 # identifier portion (4c000215) as well as Tilt specific uuid preamble (a495)
-
-TILT = '4c000215a495'
+APPLE_MANUFACTURER_ID   = 0x4c
+IBEACONS_ID             = b"\x02\x15"
+TILT_ID                 = b"\xa4\x95"
 
 class Tilt(object):
     """
-    Class defining the content of a Tilt advertisement
+    Class decoding the content of a Tilt advertisement
     """
-
     def decode(self, packet):
-        data = {}
-        raw_data = packet.retrieve('Payload for mfg_specific_data')
-        if raw_data:
-            pckt = raw_data[0].val
-            payload = raw_data[0].val.hex()
-            mfg_id = payload[0:12]
-            rssi = packet.retrieve('rssi')
-            mac = packet.retrieve("peer")
-            if mfg_id == TILT:
-                data['uuid'] = payload[8:40]
-                data['major'] = unpack('>H', pckt[20:22])[0] # Temperature in degrees F
-                data['minor'] = unpack('>H', pckt[22:24])[0] # Specific gravity x1000
-                data['tx_power'] = unpack('>b', pckt[24:25])[0] # Weeks since battery change (0-152 when converted to unsigned 8 bit integer) and other TBD operation codes
-                data['rssi'] = rssi[-1].val
-                data['mac'] = mac[-1].val
+        manufacturer_id = packet.retrieve_last("Manufacturer ID").val if packet.retrieve_last("Manufacturer ID") else None
+        payload = packet.retrieve_last("Payload").val if packet.retrieve_last("Payload") else None
+
+        if manufacturer_id == APPLE_MANUFACTURER_ID and payload:
+            # See https://en.wikipedia.org/wiki/IBeacon#BLE_Advertisement_Packet_Structure_Byte_Map
+            if payload[0:2] == IBEACONS_ID and payload[2:4] == TILT_ID:
+                data = {}
+
+                rssi = packet.retrieve_last("rssi").val if packet.retrieve_last("rssi") else None
+                mac = packet.retrieve_last("peer").val if packet.retrieve_last("peer") else None
+
+                data['uuid']        = payload[2:18].hex("-")
+                data['major']       = unpack('>H', payload[18:20])[0]   # Temperature in degrees F
+                data['minor']       = unpack('>H', payload[20:22])[0]   # Specific gravity x1000
+                data['tx_power']    = unpack('>b', payload[22:23])[0]   # Weeks since battery change (0-152 when converted to unsigned 8 bit integer) and other TBD operation codes
+                data['rssi']        = rssi
+                data['mac']         = mac
+
                 return json.dumps(data)
