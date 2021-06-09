@@ -33,4 +33,4 @@ class Tilt(object):
                 data['rssi']        = rssi
                 data['mac']         = mac
 
-                return json.dumps(data)
+                return data
