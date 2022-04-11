@@ -28,9 +28,9 @@ import re
 import aioblescan as aiobs
 from aioblescan.plugins import EddyStone
 from aioblescan.plugins import RuuviWeather
-from aioblescan.plugins import BlueMaestro
 from aioblescan.plugins import ATCMiThermometer
 from aioblescan.plugins import Tilt
+from aioblescan.plugins import ThermoBeacon
 
 # global
 opts = None
@@ -62,27 +62,38 @@ def my_process(data):
 
     if opts.raw:
         print("Raw data: {}".format(ev.raw_data))
+    noopt = True
     if opts.eddy:
+        noopt = False
         xx = EddyStone().decode(ev)
         if xx:
             print("Google Beacon {}".format(xx))
-    elif opts.ruuvi:
+            return
+    if opts.ruuvi:
+        noopt = False
         xx = RuuviWeather().decode(ev)
         if xx:
             print("Weather info {}".format(xx))
-    elif opts.pebble:
-        xx = BlueMaestro().decode(ev)
-        if xx:
-            print("Pebble info {}".format(xx))
-    elif opts.atcmi:
+            return
+    if opts.atcmi:
+        noopt = False
         xx = ATCMiThermometer().decode(ev)
         if xx:
             print("Temperature info {}".format(xx))
-    elif opts.tilt:
+            return
+    if opts.tilt:
+        noopt = False
         xx = Tilt().decode(ev)
         if xx:
-            print("{}".format(xx))        
-    else:
+            print("{}".format(xx))
+            return
+    if opts.thermobeacon:
+        noopt = False
+        xx = ThermoBeacon().decode(ev)
+        if xx:
+            print("Temperature info {}".format(xx))
+            return
+    if noopt:
         ev.show(0)
 
 
@@ -112,18 +123,18 @@ def main(args=None):
         help="Look only for Ruuvi tag Weather station messages",
     )
     parser.add_argument(
-        "-p",
-        "--pebble",
-        action="store_true",
-        default=False,
-        help="Look only for Pebble Environment Monitor",
-    )
-    parser.add_argument(
         "-A",
         "--atcmi",
         action="store_true",
         default=False,
         help="Look only for ATC_MiThermometer tag messages",
+    )
+    parser.add_argument(
+        "-T",
+        "--thermobeacon",
+        action="store_true",
+        default=False,
+        help="Look only for ThermoBeacon messages",
     )
     parser.add_argument(
         "-R",
@@ -161,7 +172,7 @@ def main(args=None):
         help="Select the hciX device to use (default 0, i.e. hci0).",
     )
     parser.add_argument(
-        "-T","--tilt",
+        "--tilt",
         action = 'store_true',
         default = False,
         help = "Look only for Tilt."

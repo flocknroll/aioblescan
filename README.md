@@ -5,7 +5,7 @@ aioblescan is a Python 3/asyncio library to listen for BLE advertized packets.
 [![PyPI version fury.io](https://badge.fury.io/py/aioblescan.svg)](https://pypi.python.org/pypi/aioblescan)
 [![MIT license](https://img.shields.io/badge/License-MIT-blue.svg)](https://lbesson.mit-licen)
 [![GITHUB-BADGE](https://github.com/frawau/aioblescan/workflows/black/badge.svg)](https://github.com/psf/black)
-
+[![Downloads](https://pepy.tech/badge/aioblescan/month)](https://pepy.tech/project/aioblescan)
 # Installation
 
 We are on PyPi so
@@ -28,7 +28,11 @@ You can use Eddystone or RuuviWeather to retrieve specific information
 
 The easiest way is to look at the `__main__.py` file.
 
-You can run the module with
+You can run the command:
+
+    aioblescan
+
+or you can run the module with
 
     python3 -m aioblescan
 
@@ -60,6 +64,15 @@ You get
 
     Temperature info {'mac address': 'a4:c1:38:40:52:38', 'temperature': 2.8, 'humidity': 62, 'battery': 72, 'battery_volts': 2.863, 'counter': 103, 'rssi': -76}
     Temperature info {'mac address': 'a4:c1:38:40:52:38', 'temperature': 2.8, 'humidity': 62, 'battery': 72, 'battery_volts': 2.863, 'counter': 103, 'rssi': -77}
+
+To check ThermoBeacon sensors
+
+    python3 -m aioblescan -T
+
+You get
+
+    Temperature info {'mac address': '19:c4:00:00:0f:5d', 'max_temperature': 27.0625, 'min_temperature': 21.75, 'max_temp_ts': 0, 'min_temp_ts': 2309}
+    Temperature info {'mac address': '19:c4:00:00:0f:5d', 'temperature': 21.75, 'humidity': 49.5, 'battery_volts': 3234, 'counter': 2401, 'rssi': -67}
 
 For a generic advertise packet scanning
 
