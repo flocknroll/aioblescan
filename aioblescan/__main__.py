@@ -21,7 +21,6 @@
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
 # WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 # IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-import sys
 import asyncio
 import argparse
 import re
@@ -31,7 +30,6 @@ from aioblescan.plugins import RuuviWeather
 from aioblescan.plugins import ATCMiThermometer
 from aioblescan.plugins import Tilt
 from aioblescan.plugins import ThermoBeacon
-from aioblescan.plugins import Tilt
 
 # global
 opts = None
