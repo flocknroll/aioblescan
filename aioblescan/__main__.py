@@ -31,9 +31,11 @@ from aioblescan.plugins import RuuviWeather
 from aioblescan.plugins import ATCMiThermometer
 from aioblescan.plugins import Tilt
 from aioblescan.plugins import ThermoBeacon
+from aioblescan.plugins import Tilt
 
 # global
 opts = None
+decoders = []
 
 
 def check_mac(val):
@@ -62,42 +64,70 @@ def my_process(data):
 
     if opts.raw:
         print("Raw data: {}".format(ev.raw_data))
-    noopt = True
-    if opts.eddy:
-        noopt = False
-        xx = EddyStone().decode(ev)
-        if xx:
-            print("Google Beacon {}".format(xx))
-            return
-    if opts.ruuvi:
-        noopt = False
-        xx = RuuviWeather().decode(ev)
-        if xx:
-            print("Weather info {}".format(xx))
-            return
-    if opts.atcmi:
-        noopt = False
-        xx = ATCMiThermometer().decode(ev)
-        if xx:
-            print("Temperature info {}".format(xx))
-            return
-    if opts.tilt:
-        noopt = False
-        xx = Tilt().decode(ev)
-        if xx:
-            print("{}".format(xx))
-            return
-    if opts.thermobeacon:
-        noopt = False
-        xx = ThermoBeacon().decode(ev)
-        if xx:
-            print("Temperature info {}".format(xx))
-            return
-    if noopt:
+    if decoders:
+        for leader, decoder in decoders:
+            xx = decoder.decode(ev)
+            if xx:
+                if opts.leader:
+                    print("{} {}".format(leader, xx))
+                else:
+                    print("{}".format(xx))
+                break
+    else:
         ev.show(0)
 
 
-def main(args=None):
+async def amain(args=None):
+    global opts
+
+    event_loop = asyncio.get_running_loop()
+
+    # First create and configure a raw socket
+    mysocket = aiobs.create_bt_socket(opts.device)
+
+    # create a connection with the raw socket
+    # This used to work but now requires a STREAM socket.
+    # fac=event_loop.create_connection(aiobs.BLEScanRequester,sock=mysocket)
+    # Thanks to martensjacobs for this fix
+    conn, btctrl = await event_loop._create_connection_transport(
+        mysocket, aiobs.BLEScanRequester, None, None
+    )
+    # Attach your processing
+    btctrl.process = my_process
+    if opts.advertise:
+        command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
+        await btctrl.send_command(command)
+        command = aiobs.HCI_Cmd_LE_Set_Advertised_Params(
+            interval_min=opts.advertise, interval_max=opts.advertise
+        )
+        await btctrl.send_command(command)
+        if opts.url:
+            myeddy = EddyStone(param=opts.url)
+        else:
+            myeddy = EddyStone()
+        if opts.txpower:
+            myeddy.power = opts.txpower
+        command = aiobs.HCI_Cmd_LE_Set_Advertised_Msg(msg=myeddy)
+        await btctrl.send_command(command)
+        command = aiobs.HCI_Cmd_LE_Advertise(enable=True)
+        await btctrl.send_command(command)
+    # Probe
+    await btctrl.send_scan_request()
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except KeyboardInterrupt:
+        print("keyboard interrupt")
+    finally:
+        print("closing event loop")
+        # event_loop.run_until_complete(btctrl.stop_scan_request())
+        await btctrl.stop_scan_request()
+        command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
+        await btctrl.send_command(command)
+        conn.close()
+
+
+def main():
     global opts
 
     parser = argparse.ArgumentParser(description="Track BLE advertised packets")
@@ -106,7 +136,7 @@ def main(args=None):
         "--eddy",
         action="store_true",
         default=False,
-        help="Look specificaly for Eddystone messages.",
+        help="Look specifically for Eddystone messages.",
     )
     parser.add_argument(
         "-m",
@@ -131,6 +161,7 @@ def main(args=None):
     )
     parser.add_argument(
         "-T",
+
         "--thermobeacon",
         action="store_true",
         default=False,
@@ -143,6 +174,7 @@ def main(args=None):
         default=False,
         help="Also show the raw data.",
     )
+
     parser.add_argument(
         "-a",
         "--advertise",
@@ -173,65 +205,35 @@ def main(args=None):
     )
     parser.add_argument(
         "--tilt",
-        action = 'store_true',
-        default = False,
-        help = "Look only for Tilt."
-    ) 
+        action="store_true",
+        default=False,
+        help="Look only for Tilt hydrometer messages",
+    )
+    parser.add_argument(
+        "--skip-leader",
+        action="store_false",
+        dest="leader",
+        help="suppress leading text identifier",
+    )
     try:
         opts = parser.parse_args()
     except Exception as e:
         parser.error("Error: " + str(e))
-        sys.exit()
 
-    event_loop = asyncio.get_event_loop()
-
-    # First create and configure a raw socket
-    mysocket = aiobs.create_bt_socket(opts.device)
-
-    # create a connection with the raw socket
-    # This used to work but now requires a STREAM socket.
-    # fac=event_loop.create_connection(aiobs.BLEScanRequester,sock=mysocket)
-    # Thanks to martensjacobs for this fix
-    fac = event_loop._create_connection_transport(
-        mysocket, aiobs.BLEScanRequester, None, None
-    )
-    # Start it
-    conn, btctrl = event_loop.run_until_complete(fac)
-    # Attach your processing
-    btctrl.process = my_process
-    if opts.advertise:
-        command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
-        event_loop.run_until_complete(btctrl.send_command(command))
-        command = aiobs.HCI_Cmd_LE_Set_Advertised_Params(
-            interval_min=opts.advertise, interval_max=opts.advertise
-        )
-        event_loop.run_until_complete(btctrl.send_command(command))
-        if opts.url:
-            myeddy = EddyStone(param=opts.url)
-        else:
-            myeddy = EddyStone()
-        if opts.txpower:
-            myeddy.power = opts.txpower
-        command = aiobs.HCI_Cmd_LE_Set_Advertised_Msg(msg=myeddy)
-        event_loop.run_until_complete(btctrl.send_command(command))
-        command = aiobs.HCI_Cmd_LE_Advertise(enable=True)
-        event_loop.run_until_complete(btctrl.send_command(command))
-
-    # Probe
-    event_loop.run_until_complete(btctrl.send_scan_request())
+    if opts.eddy:
+        decoders.append(("Google Beacon", EddyStone()))
+    if opts.ruuvi:
+        decoders.append(("Weather info", RuuviWeather()))
+    if opts.atcmi:
+        decoders.append(("Temperature info", ATCMiThermometer()))
+    if opts.thermobeacon:
+        decoders.append(("Temperature info", ThermoBeacon()))
+    if opts.tilt:
+        decoders.append(("Tilt", Tilt()))
     try:
-        # event_loop.run_until_complete(coro)
-        event_loop.run_forever()
-    except KeyboardInterrupt:
-        print("keyboard interrupt")
-    finally:
-        print("closing event loop")
-        event_loop.run_until_complete(btctrl.stop_scan_request())
-        command = aiobs.HCI_Cmd_LE_Advertise(enable=False)
-        event_loop.run_until_complete(btctrl.send_command(command))
-        conn.close()
-        event_loop.close()
-
+        asyncio.run(amain())
+    except:
+        pass
 
 if __name__ == "__main__":
     main()
